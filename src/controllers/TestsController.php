@@ -205,13 +205,16 @@ class TestsController extends Controller
                 ? Entry::find()->id($test->variantEntryId)->siteId($test->siteId)->status(null)->one()
                 : null;
 
-            Craft::$app->getUrlManager()->setRouteParams([
+            // Render the form directly with the populated model so the user's
+            // input is preserved. Using setRouteParams() + returning null would
+            // re-route to actionNew/actionEdit, which rebuild a fresh model from
+            // scratch (or the DB) and discard everything the user just entered.
+            return $this->renderTemplate('abtestcraft/tests/_form', [
                 'test' => $test,
+                'isNew' => !$test->id,
                 'controlEntry' => $controlEntry,
                 'variantEntry' => $variantEntry,
             ]);
-
-            return null;
         }
 
         // Save goals (new multi-goal system)
