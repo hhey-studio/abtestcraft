@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-06-25
+
+### Fixed
+- Saving a test whose name produced an already-used handle no longer throws an
+  unhandled `1062` integrity violation. Handle uniqueness is now validated in the
+  model (including trashed rows, matching the DB index), so collisions surface as
+  a friendly form error, and auto-generated handles are uniquified with a numeric
+  suffix.
+- Handle validation and generation now follow Craft's standard convention: the
+  custom kebab-case pattern is replaced with `HandleValidator` and
+  `StringHelper::toHandle()`, matching the camelCase output of
+  `Craft.HandleGenerator` used in the form (which previously failed validation).
+
 ## [1.0.1] - 2026-06-25
 
 ### Fixed
