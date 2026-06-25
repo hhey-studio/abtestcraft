@@ -1,7 +1,6 @@
 {
     "name": "livehand/abtestcraft",
     "description": "A/B testing for Craft CMS - test page variations and track conversions with statistical significance",
-    "version": "1.0.0",
     "type": "craft-plugin",
     "license": "proprietary",
     "keywords": [

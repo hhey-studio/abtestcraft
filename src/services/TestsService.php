@@ -26,7 +26,7 @@ class TestsService extends Component
      * @param bool $includeTrashed Include soft-deleted tests
      * @return Test[]
      */
-    public function getAllTests(?int $siteId = null, int $limit = 0, int $offset = 0, bool $includeTrashed = false): array
+    public function getAllTests(int|string|null $siteId = null, int $limit = 0, int $offset = 0, bool $includeTrashed = false): array
     {
         $query = TestRecord::find();
 
@@ -54,7 +54,7 @@ class TestsService extends Component
      * @param bool $includeTrashed Include soft-deleted tests
      * @return int Total number of tests
      */
-    public function getTotalTestCount(?int $siteId = null, bool $includeTrashed = false): int
+    public function getTotalTestCount(int|string|null $siteId = null, bool $includeTrashed = false): int
     {
         $query = (new Query())->from('{{%abtestcraft_tests}}');
 
@@ -72,7 +72,7 @@ class TestsService extends Component
     /**
      * Get active tests (running)
      */
-    public function getActiveTests(?int $siteId = null): array
+    public function getActiveTests(int|string|null $siteId = null): array
     {
         $query = TestRecord::find()
             ->where(['status' => Test::STATUS_RUNNING])
@@ -90,7 +90,7 @@ class TestsService extends Component
      *
      * @param string $filter 'active' (draft/running/paused), 'completed', 'trashed', or 'all'
      */
-    public function getTestsByStatus(string $filter = 'active', ?int $siteId = null): array
+    public function getTestsByStatus(string $filter = 'active', int|string|null $siteId = null): array
     {
         $query = TestRecord::find();
 
@@ -122,7 +122,7 @@ class TestsService extends Component
      *
      * @return array{active: int, completed: int, trashed: int, all: int}
      */
-    public function getTestCounts(?int $siteId = null): array
+    public function getTestCounts(int|string|null $siteId = null): array
     {
         $baseQuery = (new Query())->from('{{%abtestcraft_tests}}');
 
@@ -156,9 +156,9 @@ class TestsService extends Component
     /**
      * Get a test by ID
      */
-    public function getTestById(int $id): ?Test
+    public function getTestById(int|string $id): ?Test
     {
-        $record = TestRecord::findOne($id);
+        $record = TestRecord::findOne((int) $id);
 
         if (!$record) {
             return null;
@@ -184,10 +184,10 @@ class TestsService extends Component
     /**
      * Get test by control entry ID
      */
-    public function getTestByControlEntryId(int $entryId, ?int $siteId = null): ?Test
+    public function getTestByControlEntryId(int|string $entryId, int|string|null $siteId = null): ?Test
     {
         $query = TestRecord::find()
-            ->where(['controlEntryId' => $entryId])
+            ->where(['controlEntryId' => (int) $entryId])
             ->andWhere(['status' => Test::STATUS_RUNNING]);
 
         if ($siteId) {

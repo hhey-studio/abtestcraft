@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-25
+
+### Fixed
+- `TestsService` now accepts `int|string` IDs/site IDs and casts to `int`,
+  fixing the `TypeError` thrown when saving tests under `strict_types`
+  (previously applied downstream via composer-patches; refs upstream issue #1 / PR #3).
+
 ## [1.0.0] - 2025-01-10
 
 ### Added
