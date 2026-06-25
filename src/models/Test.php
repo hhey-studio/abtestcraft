@@ -8,8 +8,10 @@ use Craft;
 use craft\base\Model;
 use craft\elements\Entry;
 use craft\helpers\StringHelper;
+use craft\validators\HandleValidator;
 use DateTime;
 use livehand\abtestcraft\ABTestCraft;
+use livehand\abtestcraft\records\TestRecord;
 
 /**
  * Test model
@@ -65,7 +67,12 @@ class Test extends Model
             [['goalType'], 'in', 'range' => [self::GOAL_PHONE, self::GOAL_FORM, self::GOAL_PAGE, self::GOAL_EMAIL, self::GOAL_DOWNLOAD]],
             [['goalValue'], 'string', 'max' => 500],
             [['winnerVariant'], 'in', 'range' => [self::VARIANT_CONTROL, self::VARIANT_VARIANT, null]],
-            [['handle'], 'match', 'pattern' => '/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/', 'message' => 'Handle must be lowercase, start with a letter, and contain only letters, numbers, and hyphens'],
+            // Use Craft's standard handle convention (camelCase, the same format
+            // Craft.HandleGenerator produces in the form) plus its reserved-word check.
+            [['handle'], HandleValidator::class],
+            // The DB enforces a unique index on `handle`; validate it here so a
+            // collision surfaces as a friendly form error rather than a 500.
+            [['handle'], 'validateUniqueHandle'],
             // Prevent same entry for control and variant
             [['variantEntryId'], 'compare', 'compareAttribute' => 'controlEntryId', 'operator' => '!=', 'message' => 'Control and variant entries must be different'],
             // Prevent circular reference - variant cannot be a descendant of control
@@ -112,13 +119,70 @@ class Test extends Model
     }
 
     /**
-     * Generate a handle from the name
+     * Validate that the handle is unique.
+     *
+     * The DB has a global unique index on `handle` (including trashed rows), so
+     * a collision must be caught here to avoid an unhandled integrity violation.
+     */
+    public function validateUniqueHandle(string $attribute): void
+    {
+        if (empty($this->handle)) {
+            return;
+        }
+
+        if ($this->handleExists($this->handle)) {
+            $this->addError($attribute, Craft::t('abtestcraft', 'The handle “{handle}” is already in use.', [
+                'handle' => $this->handle,
+            ]));
+        }
+    }
+
+    /**
+     * Generate a handle from the name when none was explicitly provided.
+     *
+     * Uses Craft's StringHelper::toHandle() so the result is a valid camelCase
+     * handle (matching Craft.HandleGenerator in the form). Only an auto-generated
+     * handle is uniquified (a numeric suffix is appended on collision, matching
+     * the DB's unique index on `handle`). A handle the user typed is left
+     * untouched so a duplicate surfaces via {@see self::validateUniqueHandle()}
+     * instead of being silently saved under a different value.
      */
     public function generateHandle(): void
     {
-        if (empty($this->handle) && !empty($this->name)) {
-            $this->handle = StringHelper::toKebabCase($this->name);
+        if (!empty($this->handle) || empty($this->name)) {
+            return;
         }
+
+        $baseHandle = StringHelper::toHandle($this->name);
+
+        if (empty($baseHandle)) {
+            return;
+        }
+
+        $this->handle = $baseHandle;
+        $suffix = 1;
+
+        while ($this->handleExists($this->handle)) {
+            $suffix++;
+            $this->handle = $baseHandle . $suffix;
+        }
+    }
+
+    /**
+     * Whether a test other than this one already uses the given handle.
+     *
+     * Trashed tests are intentionally included because the unique DB index
+     * applies to them too.
+     */
+    private function handleExists(string $handle): bool
+    {
+        $query = TestRecord::find()->where(['handle' => $handle]);
+
+        if ($this->id) {
+            $query->andWhere(['not', ['id' => $this->id]]);
+        }
+
+        return $query->exists();
     }
 
     /**
