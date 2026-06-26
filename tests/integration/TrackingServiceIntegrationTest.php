@@ -11,6 +11,7 @@ use craft\helpers\StringHelper;
 use livehand\abtestcraft\models\Goal;
 use livehand\abtestcraft\models\Settings;
 use livehand\abtestcraft\models\Test;
+use livehand\abtestcraft\records\ConversionRecord;
 use livehand\abtestcraft\records\DailyStatsRecord;
 use livehand\abtestcraft\records\GoalRecord;
 use livehand\abtestcraft\records\TestRecord;
@@ -47,6 +48,7 @@ class TrackingServiceIntegrationTest extends Unit
     {
         if ($this->testRecordId) {
             DailyStatsRecord::deleteAll(['testId' => $this->testRecordId]);
+            ConversionRecord::deleteAll(['testId' => $this->testRecordId]);
             VisitorRecord::deleteAll(['testId' => $this->testRecordId]);
             GoalRecord::deleteAll(['testId' => $this->testRecordId]);
             TestRecord::deleteAll(['id' => $this->testRecordId]);
@@ -160,6 +162,37 @@ class TrackingServiceIntegrationTest extends Unit
         $record->visitorId = $visitorId;
         $record->variant = $variant;
         $record->converted = false;
+        $record->save(false);
+
+        return $record;
+    }
+
+    /**
+     * Create a conversion event record for testing converted visitor counts.
+     */
+    private function createConversionRecord(int $testId, string $variant, string $visitorId, string $conversionType): ConversionRecord
+    {
+        $record = new ConversionRecord();
+        $record->testId = $testId;
+        $record->visitorId = $visitorId;
+        $record->variant = $variant;
+        $record->conversionType = $conversionType;
+        $record->dateConverted = (new DateTime())->format('Y-m-d H:i:s');
+        $record->save(false);
+
+        return $record;
+    }
+
+    /**
+     * Create an enabled goal record for testing conversions.
+     */
+    private function createGoalRecord(int $testId, string $goalType): GoalRecord
+    {
+        $record = new GoalRecord();
+        $record->testId = $testId;
+        $record->goalType = $goalType;
+        $record->isEnabled = true;
+        $record->sortOrder = 0;
         $record->save(false);
 
         return $record;
@@ -336,6 +369,51 @@ class TrackingServiceIntegrationTest extends Unit
 
         $this->assertEquals(2, $visitors['control'], 'Control should have 2 unique visitors');
         $this->assertEquals(1, $visitors['variant'], 'Variant should have 1 unique visitor');
+    }
+
+    /**
+     * Test getConvertedVisitors counts each visitor once even with multiple conversions.
+     */
+    public function testGetConvertedVisitorsCountsDistinctVisitors(): void
+    {
+        $record = $this->createTestRecord();
+        $test = $this->createTestModel($record);
+
+        $this->createConversionRecord($test->id, Test::VARIANT_CONTROL, 'visitor-1', 'form');
+        $this->createConversionRecord($test->id, Test::VARIANT_CONTROL, 'visitor-1', 'email');
+        $this->createConversionRecord($test->id, Test::VARIANT_VARIANT, 'visitor-2', 'form');
+
+        $visitors = $this->service->getConvertedVisitors($test);
+
+        $this->assertEquals(1, $visitors['control'], 'Control should count visitor-1 once');
+        $this->assertEquals(1, $visitors['variant'], 'Variant should count visitor-2 once');
+    }
+
+    /**
+     * Test conversion uses the test's enabled goal type even if client goalId is stale.
+     */
+    public function testRecordConversionFallsBackToEnabledGoalByType(): void
+    {
+        $record = $this->createTestRecord();
+        $test = $this->createTestModel($record);
+        $goal = $this->createGoalRecord($test->id, Goal::TYPE_FORM);
+        $visitorId = StringHelper::UUID();
+        $this->createVisitorRecord($test->id, Test::VARIANT_CONTROL, $visitorId);
+
+        $_COOKIE['_abtestcraft_vid'] = $visitorId;
+
+        $result = $this->service->recordConversion($test, Goal::TYPE_FORM, 999999);
+
+        $this->assertTrue($result, 'Valid enabled goal type should count even with stale goalId');
+
+        $conversion = ConversionRecord::findOne([
+            'testId' => $test->id,
+            'visitorId' => $visitorId,
+            'conversionType' => Goal::TYPE_FORM,
+        ]);
+
+        $this->assertNotNull($conversion);
+        $this->assertEquals($goal->id, $conversion->goalId);
     }
 
     /**

@@ -37,8 +37,9 @@ class TrackController extends Controller
             return $this->asJson(['success' => false, 'error' => 'Missing parameters']);
         }
 
-        // Validate testHandle format (must be kebab-case starting with letter)
-        if (!is_string($testHandle) || !preg_match('/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/', $testHandle)) {
+        // Validate testHandle format. Accept Craft handles (camelCase/underscores)
+        // and legacy kebab-case handles from older releases.
+        if (!is_string($testHandle) || !preg_match('/^[A-Za-z][A-Za-z0-9_]*(?:-[a-z0-9]+)*$/', $testHandle)) {
             return $this->asJson(['success' => false, 'error' => 'Invalid test handle format']);
         }
 

@@ -200,12 +200,13 @@ The plugin creates the following tables that should be included in your backup s
 | `abtestcraft_tests` | Test configurations | Low (manual creation) |
 | `abtestcraft_goals` | Goal configurations | Low (tied to tests) |
 | `abtestcraft_visitors` | Visitor assignments | Medium (one per unique visitor per test) |
+| `abtestcraft_conversions` | Conversion events | Medium (one per counted conversion) |
 | `abtestcraft_daily_stats` | Aggregated statistics | Low (one row per day/variant/goal) |
 | `abtestcraft_rate_limits` | Rate limiting cache | Self-cleaning (auto-purges old entries) |
 
 ### Data Retention
 
-- **Visitor data**: Retained indefinitely until test is hard-deleted
+- **Visitor and conversion data**: Retained indefinitely until test is hard-deleted
 - **Statistics**: Aggregated daily, raw impressions not stored
 - **Completed tests**: Remain in database for historical reference
 - **Trashed tests**: Soft-deleted, can be restored or permanently removed
@@ -224,6 +225,7 @@ Include these tables in your database backups:
 abtestcraft_tests
 abtestcraft_goals
 abtestcraft_visitors
+abtestcraft_conversions
 abtestcraft_daily_stats
 ```
 

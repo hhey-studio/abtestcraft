@@ -117,6 +117,20 @@ class Install extends Migration
             'uid' => $this->uid(),
         ]);
 
+        // Conversion events table (from m250626_000001)
+        $this->createTable('{{%abtestcraft_conversions}}', [
+            'id' => $this->primaryKey(),
+            'testId' => $this->integer()->notNull(),
+            'visitorId' => $this->string(36)->notNull(),
+            'variant' => $this->string(20)->notNull(),
+            'conversionType' => $this->string(50)->notNull(),
+            'goalId' => $this->integer()->null(),
+            'dateConverted' => $this->dateTime()->notNull(),
+            'dateCreated' => $this->dateTime()->notNull(),
+            'dateUpdated' => $this->dateTime()->notNull(),
+            'uid' => $this->uid(),
+        ]);
+
         // Test descendants table for cascade support (from m250110_000001_add_cascade_descendants_table)
         $this->createTable('{{%abtestcraft_test_descendants}}', [
             'id' => $this->primaryKey(),
@@ -162,6 +176,12 @@ class Install extends Migration
         $this->createIndex('idx_abtestcraft_rate_limits_cache_key', '{{%abtestcraft_rate_limits}}', ['cacheKey'], true);
         $this->createIndex('idx_abtestcraft_rate_limits_window', '{{%abtestcraft_rate_limits}}', ['windowStart']);
 
+        // Conversion event indexes
+        $this->createIndex(null, '{{%abtestcraft_conversions}}', ['testId']);
+        $this->createIndex(null, '{{%abtestcraft_conversions}}', ['testId', 'visitorId']);
+        $this->createIndex(null, '{{%abtestcraft_conversions}}', ['testId', 'conversionType']);
+        $this->createIndex(null, '{{%abtestcraft_conversions}}', ['testId', 'goalId']);
+        $this->createIndex(null, '{{%abtestcraft_conversions}}', ['dateConverted']);
         // Test descendants indexes (from m250110_000001_add_cascade_descendants_table)
         $this->createIndex(null, '{{%abtestcraft_test_descendants}}', ['testId']);
         $this->createIndex(null, '{{%abtestcraft_test_descendants}}', ['descendantEntryId']);
@@ -236,6 +256,17 @@ class Install extends Migration
             'CASCADE'
         );
 
+        // Conversion events foreign keys
+        $this->addForeignKey(
+            null,
+            '{{%abtestcraft_conversions}}',
+            ['testId'],
+            '{{%abtestcraft_tests}}',
+            ['id'],
+            'CASCADE',
+            'CASCADE'
+        );
+
         // Test descendants foreign keys (from m250110_000001_add_cascade_descendants_table)
         $this->addForeignKey(
             null,
@@ -297,6 +328,9 @@ class Install extends Migration
         if ($this->db->tableExists('{{%abtestcraft_daily_stats}}')) {
             $this->dropAllForeignKeysToTable('{{%abtestcraft_daily_stats}}');
         }
+        if ($this->db->tableExists('{{%abtestcraft_conversions}}')) {
+            $this->dropAllForeignKeysToTable('{{%abtestcraft_conversions}}');
+        }
         if ($this->db->tableExists('{{%abtestcraft_visitors}}')) {
             $this->dropAllForeignKeysToTable('{{%abtestcraft_visitors}}');
         }
@@ -312,6 +346,7 @@ class Install extends Migration
     {
         $this->dropTableIfExists('{{%abtestcraft_test_descendants}}');
         $this->dropTableIfExists('{{%abtestcraft_rate_limits}}');
+        $this->dropTableIfExists('{{%abtestcraft_conversions}}');
         $this->dropTableIfExists('{{%abtestcraft_daily_stats}}');
         $this->dropTableIfExists('{{%abtestcraft_visitors}}');
         $this->dropTableIfExists('{{%abtestcraft_goals}}');

@@ -9,6 +9,7 @@ use craft\base\Component;
 use craft\db\Query;
 use livehand\abtestcraft\models\Settings;
 use livehand\abtestcraft\models\Test;
+use livehand\abtestcraft\records\ConversionRecord;
 use livehand\abtestcraft\records\DailyStatsRecord;
 use livehand\abtestcraft\records\VisitorRecord;
 use livehand\abtestcraft\ABTestCraft;
@@ -74,6 +75,44 @@ class TrackingService extends Component
             return false;
         }
 
+        $providedGoalId = $goalId;
+        $goal = ABTestCraft::getInstance()->goals->getGoalByTestAndType((int) $test->id, $conversionType);
+
+        if ($providedGoalId !== null) {
+            $providedGoal = ABTestCraft::getInstance()->goals->getGoalById($providedGoalId);
+
+            if (
+                $providedGoal &&
+                $providedGoal->testId === $test->id &&
+                $providedGoal->goalType === $conversionType
+            ) {
+                $goal = $providedGoal;
+            }
+        }
+
+        $isLegacyGoal = !$goal &&
+            $providedGoalId === null &&
+            !$test->hasGoals() &&
+            $conversionType === $test->goalType;
+
+        if (
+            !$isLegacyGoal &&
+            (
+                !$goal ||
+                $goal->testId !== $test->id ||
+                $goal->goalType !== $conversionType ||
+                !$goal->isEnabled
+            )
+        ) {
+            Craft::warning(
+                "Split Test: Ignoring conversion for unconfigured goal '{$conversionType}' on test '{$test->handle}'",
+                __METHOD__
+            );
+            return false;
+        }
+
+        $goalId = $goal?->id;
+
         // Check for duplicate conversions based on counting mode setting
         $mode = ABTestCraft::getInstance()->getSettings()->conversionCountingMode ?? Settings::COUNTING_PER_GOAL_TYPE;
 
@@ -82,23 +121,21 @@ class TrackingService extends Component
         if ($mode === Settings::COUNTING_FIRST_ONLY) {
             // First conversion only: check if visitor has ANY conversion
             $existingConversion = (new Query())
-                ->from('{{%abtestcraft_visitors}}')
+                ->from('{{%abtestcraft_conversions}}')
                 ->where([
                     'testId' => $test->id,
                     'visitorId' => $visitorRecord->visitorId,
                 ])
-                ->andWhere(['not', ['dateConverted' => null]])
                 ->exists();
         } elseif ($mode === Settings::COUNTING_PER_GOAL_TYPE) {
             // Per goal type (default): check if visitor has conversion for THIS goal type
             $existingConversion = (new Query())
-                ->from('{{%abtestcraft_visitors}}')
+                ->from('{{%abtestcraft_conversions}}')
                 ->where([
                     'testId' => $test->id,
                     'visitorId' => $visitorRecord->visitorId,
                     'conversionType' => $conversionType,
                 ])
-                ->andWhere(['not', ['dateConverted' => null]])
                 ->exists();
         }
         // Unlimited mode: existingConversion stays false, always allow
@@ -110,11 +147,28 @@ class TrackingService extends Component
         // Use transaction to ensure atomic updates
         $transaction = Craft::$app->getDb()->beginTransaction();
         try {
+            $dateConverted = (new DateTime())->format('Y-m-d H:i:s');
+
+            $conversionRecord = new ConversionRecord();
+            $conversionRecord->testId = $test->id;
+            $conversionRecord->visitorId = $visitorRecord->visitorId;
+            $conversionRecord->variant = $visitorRecord->variant;
+            $conversionRecord->conversionType = $conversionType;
+            $conversionRecord->goalId = $goalId;
+            $conversionRecord->dateConverted = $dateConverted;
+
+            if (!$conversionRecord->save()) {
+                throw new \Exception(
+                    "Failed to save conversion event record: " .
+                    json_encode($conversionRecord->getErrors())
+                );
+            }
+
             // Update visitor record with this conversion
             $visitorRecord->converted = true;
             $visitorRecord->conversionType = $conversionType;
             $visitorRecord->goalId = $goalId;
-            $visitorRecord->dateConverted = (new DateTime())->format('Y-m-d H:i:s');
+            $visitorRecord->dateConverted = $dateConverted;
 
             if (!$visitorRecord->save()) {
                 throw new \Exception(
@@ -217,6 +271,7 @@ class TrackingService extends Component
             ->select(['variant', 'SUM(impressions) as total'])
             ->from('{{%abtestcraft_daily_stats}}')
             ->where(['testId' => $test->id])
+            ->andWhere(['goalType' => null])
             ->groupBy(['variant'])
             ->all();
 
@@ -282,9 +337,12 @@ class TrackingService extends Component
     public function getConvertedVisitors(Test $test): array
     {
         $stats = (new Query())
-            ->select(['variant', 'COUNT(*) as total'])
-            ->from('{{%abtestcraft_visitors}}')
-            ->where(['testId' => $test->id, 'converted' => true])
+            ->select([
+                'variant',
+                new \yii\db\Expression('COUNT(DISTINCT [[visitorId]]) AS [[total]]'),
+            ])
+            ->from('{{%abtestcraft_conversions}}')
+            ->where(['testId' => $test->id])
             ->groupBy(['variant'])
             ->all();
 

@@ -96,7 +96,7 @@
                                 <span class="light">—</span>
                             {% else %}
                                 {{ stats.conversionRates.control }}%
-                                <div class="light">{{ stats.conversions.control }}/{{ stats.impressions.control }}</div>
+                                <div class="light">{{ stats.convertedVisitors.control }}/{{ stats.visitors.control }} visitors</div>
                             {% endif %}
                         </td>
                         <td>
@@ -104,7 +104,7 @@
                                 <span class="light">—</span>
                             {% else %}
                                 {{ stats.conversionRates.variant }}%
-                                <div class="light">{{ stats.conversions.variant }}/{{ stats.impressions.variant }}</div>
+                                <div class="light">{{ stats.convertedVisitors.variant }}/{{ stats.visitors.variant }} visitors</div>
                             {% endif %}
                         </td>
                         {# Lift column - contextual display #}

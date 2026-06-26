@@ -146,6 +146,7 @@ class GoalsService extends Component
             }
 
             $transaction->commit();
+            ABTestCraft::getInstance()->stats->invalidateStatsCache((int) $test->id);
             return true;
         } catch (\Exception $e) {
             $transaction->rollBack();
@@ -169,7 +170,13 @@ class GoalsService extends Component
             return false;
         }
 
-        return (bool) $record->delete();
+        $testId = (int) $goal->testId;
+        $result = (bool) $record->delete();
+        if ($result) {
+            ABTestCraft::getInstance()->stats->invalidateStatsCache($testId);
+        }
+
+        return $result;
     }
 
     /**
@@ -177,7 +184,10 @@ class GoalsService extends Component
      */
     public function deleteGoalsByTestId(int $testId): bool
     {
-        return (bool) GoalRecord::deleteAll(['testId' => $testId]);
+        $result = (bool) GoalRecord::deleteAll(['testId' => $testId]);
+        ABTestCraft::getInstance()->stats->invalidateStatsCache($testId);
+
+        return $result;
     }
 
     /**

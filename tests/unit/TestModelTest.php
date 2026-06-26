@@ -200,7 +200,7 @@ class TestModelTest extends Unit
         $test->name = 'My Test Name';
         $test->generateHandle();
 
-        $this->assertEquals('my-test-name', $test->handle);
+        $this->assertEquals('myTestName', $test->handle);
     }
 
     /**
@@ -272,7 +272,7 @@ class TestModelTest extends Unit
         $test->goalType = Test::GOAL_FORM;
 
         // Valid handles
-        $test->handle = 'my-test';
+        $test->handle = 'myTest';
         $this->assertTrue($test->validate(['handle']));
 
         $test->handle = 'test123';
@@ -282,14 +282,14 @@ class TestModelTest extends Unit
         $this->assertTrue($test->validate(['handle']));
 
         // Invalid handles
-        $test->handle = 'My-Test'; // Uppercase
+        $test->handle = 'My-Test'; // Hyphen
         $this->assertFalse($test->validate(['handle']));
 
         $test->handle = '123test'; // Starts with number
         $this->assertFalse($test->validate(['handle']));
 
-        $test->handle = 'test_name'; // Underscore
-        $this->assertFalse($test->validate(['handle']));
+        $test->handle = 'test_name'; // Underscore is valid for Craft handles
+        $this->assertTrue($test->validate(['handle']));
     }
 
     /**

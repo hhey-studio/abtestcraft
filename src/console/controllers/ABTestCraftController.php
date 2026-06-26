@@ -22,7 +22,7 @@ class ABTestCraftController extends Controller
     public bool $force = false;
 
     /**
-     * @var int Number of days to keep visitor data (for cleanup command)
+     * @var int Number of days to keep transient rate-limit data
      */
     public int $days = 90;
 
@@ -179,7 +179,7 @@ class ABTestCraftController extends Controller
     }
 
     /**
-     * Clean up old visitor data for completed tests
+     * Clean up transient rate-limit data.
      *
      * Usage: ./craft abtestcraft/cleanup --days=90
      *
@@ -190,20 +190,8 @@ class ABTestCraftController extends Controller
         $this->stdout("\n");
         $this->stdout("ABTestCraft Cleanup\n", Console::BOLD);
         $this->stdout(str_repeat('-', 50) . "\n");
-        $this->stdout("Cleaning visitor records older than {$this->days} days for completed tests...\n\n");
-
-        // Find completed tests
-        $completedTests = array_filter(
-            ABTestCraft::getInstance()->tests->getAllTests(),
-            fn($test) => $test->isCompleted()
-        );
-
-        if (empty($completedTests)) {
-            $this->stdout("No completed tests found.\n", Console::FG_YELLOW);
-            return ExitCode::OK;
-        }
-
-        $this->stdout("Found " . count($completedTests) . " completed test(s).\n");
+        $this->stdout("Visitor and conversion rows are retained because they are required for historical stats.\n");
+        $this->stdout("Cleaning transient rate-limit records older than {$this->days} days...\n\n");
 
         if (!$this->force) {
             $confirm = $this->confirm("Proceed with cleanup?");
@@ -214,26 +202,13 @@ class ABTestCraftController extends Controller
         }
 
         $cutoffDate = (new \DateTime())->modify("-{$this->days} days")->format('Y-m-d H:i:s');
-        $totalDeleted = 0;
-
-        foreach ($completedTests as $test) {
-            $deleted = Craft::$app->getDb()->createCommand()
-                ->delete('{{%abtestcraft_visitors}}', [
-                    'and',
-                    ['testId' => $test->id],
-                    ['<', 'dateCreated', $cutoffDate],
-                ])
-                ->execute();
-
-            if ($deleted > 0) {
-                $this->stdout("  {$test->name}: Deleted {$deleted} visitor records\n");
-                $totalDeleted += $deleted;
-            }
-        }
+        $totalDeleted = Craft::$app->getDb()->createCommand()
+            ->delete('{{%abtestcraft_rate_limits}}', ['<', 'windowStart', $cutoffDate])
+            ->execute();
 
         $this->stdout("\n");
         if ($totalDeleted > 0) {
-            $this->stdout("Total deleted: {$totalDeleted} visitor records\n", Console::FG_GREEN);
+            $this->stdout("Total deleted: {$totalDeleted} rate-limit records\n", Console::FG_GREEN);
         } else {
             $this->stdout("No records needed cleanup.\n", Console::FG_YELLOW);
         }

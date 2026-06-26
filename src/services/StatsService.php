@@ -44,6 +44,18 @@ class StatsService extends Component
             ->groupBy(['testId', 'variant'])
             ->all();
 
+        // Batch query for unique visitors who converted
+        $convertedVisitorStats = (new Query())
+            ->select([
+                'testId',
+                'variant',
+                new \yii\db\Expression('COUNT(DISTINCT [[visitorId]]) AS [[total]]'),
+            ])
+            ->from('{{%abtestcraft_conversions}}')
+            ->where(['testId' => $testIds])
+            ->groupBy(['testId', 'variant'])
+            ->all();
+
         // Build lookup maps
         $statsMap = [];
         foreach ($dailyStats as $stat) {
@@ -54,6 +66,7 @@ class StatsService extends Component
                     'impressions' => ['control' => 0, 'variant' => 0],
                     'conversions' => ['control' => 0, 'variant' => 0],
                     'visitors' => ['control' => 0, 'variant' => 0],
+                    'convertedVisitors' => ['control' => 0, 'variant' => 0],
                 ];
             }
             $statsMap[$testId]['impressions'][$variant] = (int) $stat['impressions'];
@@ -68,9 +81,24 @@ class StatsService extends Component
                     'impressions' => ['control' => 0, 'variant' => 0],
                     'conversions' => ['control' => 0, 'variant' => 0],
                     'visitors' => ['control' => 0, 'variant' => 0],
+                    'convertedVisitors' => ['control' => 0, 'variant' => 0],
                 ];
             }
             $statsMap[$testId]['visitors'][$variant] = (int) $stat['total'];
+        }
+
+        foreach ($convertedVisitorStats as $stat) {
+            $testId = $stat['testId'];
+            $variant = $stat['variant'];
+            if (!isset($statsMap[$testId])) {
+                $statsMap[$testId] = [
+                    'impressions' => ['control' => 0, 'variant' => 0],
+                    'conversions' => ['control' => 0, 'variant' => 0],
+                    'visitors' => ['control' => 0, 'variant' => 0],
+                    'convertedVisitors' => ['control' => 0, 'variant' => 0],
+                ];
+            }
+            $statsMap[$testId]['convertedVisitors'][$variant] = (int) $stat['total'];
         }
 
         // Calculate stats for each test
@@ -80,39 +108,48 @@ class StatsService extends Component
                 'impressions' => ['control' => 0, 'variant' => 0],
                 'conversions' => ['control' => 0, 'variant' => 0],
                 'visitors' => ['control' => 0, 'variant' => 0],
+                'convertedVisitors' => ['control' => 0, 'variant' => 0],
             ];
 
             $conversionRates = [
                 'control' => $this->calculateConversionRate(
-                    $testStats['impressions']['control'],
-                    $testStats['conversions']['control']
+                    $testStats['visitors']['control'],
+                    $testStats['convertedVisitors']['control']
                 ),
                 'variant' => $this->calculateConversionRate(
-                    $testStats['impressions']['variant'],
-                    $testStats['conversions']['variant']
+                    $testStats['visitors']['variant'],
+                    $testStats['convertedVisitors']['variant']
                 ),
             ];
 
             $significance = $this->calculateSignificance(
-                $testStats['impressions']['control'],
-                $testStats['conversions']['control'],
-                $testStats['impressions']['variant'],
-                $testStats['conversions']['variant']
+                $testStats['visitors']['control'],
+                $testStats['convertedVisitors']['control'],
+                $testStats['visitors']['variant'],
+                $testStats['convertedVisitors']['variant']
             );
 
             $settings = ABTestCraft::getInstance()->getSettings();
             $isSignificant = $significance['confidence'] >= $settings->significanceThreshold;
             $improvement = $this->calculateImprovement($conversionRates['control'], $conversionRates['variant']);
+            $totalVisitors = $testStats['visitors']['control'] + $testStats['visitors']['variant'];
+            $sampleSizeNeeded = $this->calculateSampleSizeNeeded($conversionRates['control']);
+            $progressPercent = $sampleSizeNeeded > 0
+                ? min(100, round(($totalVisitors / ($sampleSizeNeeded * 2)) * 100))
+                : 0;
 
             $result[$test->id] = [
                 'impressions' => $testStats['impressions'],
                 'conversions' => $testStats['conversions'],
                 'visitors' => $testStats['visitors'],
+                'convertedVisitors' => $testStats['convertedVisitors'],
                 'conversionRates' => $conversionRates,
                 'confidence' => $significance['confidence'],
                 'isSignificant' => $isSignificant,
                 'improvement' => $improvement,
                 'winner' => $this->determineWinner($conversionRates, $isSignificant),
+                'totalVisitors' => $totalVisitors,
+                'progressPercent' => $progressPercent,
             ];
         }
 

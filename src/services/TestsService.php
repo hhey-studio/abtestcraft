@@ -249,6 +249,8 @@ class TestsService extends Component
         $test->dateUpdated = new DateTime($record->dateUpdated);
         $test->uid = $record->uid;
 
+        ABTestCraft::getInstance()->stats->invalidateStatsCache((int) $test->id);
+
         // Rebuild cascade descendant mappings for this test
         if ($test->controlEntryId && $test->variantEntryId) {
             ABTestCraft::getInstance()->cascade->rebuildDescendants($test);
@@ -443,6 +445,9 @@ class TestsService extends Component
         $test->startedAt = $record->startedAt ? new DateTime($record->startedAt) : null;
         $test->endedAt = $record->endedAt ? new DateTime($record->endedAt) : null;
         $test->winnerVariant = $record->winnerVariant;
+        $test->significanceNotifiedAt = $record->significanceNotifiedAt
+            ? new DateTime($record->significanceNotifiedAt)
+            : null;
         $test->dateCreated = new DateTime($record->dateCreated);
         $test->dateUpdated = new DateTime($record->dateUpdated);
         $test->dateDeleted = $record->dateDeleted ? new DateTime($record->dateDeleted) : null;
