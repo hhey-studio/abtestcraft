@@ -55,15 +55,15 @@ class TrackController extends Controller
 
         Craft::debug("Conversion request: test={$testHandle}, type={$conversionType}", 'abtestcraft');
 
-        // Rate limiting - combine IP + visitor ID for stronger protection
-        $ip = $request->getUserIP();
+        // Rate limiting - combine IP + visitor ID for stronger protection.
+        // Use Craft's getUserIP(), which resolves the real client IP via the
+        // configured `ipHeaders`/trusted proxies. We deliberately do NOT trust a
+        // raw CF-Connecting-IP header here: this site isn't behind Cloudflare, so
+        // an attacker could spoof that header to get a fresh bucket per request
+        // and bypass the limit. Sites that ARE behind a proxy should configure
+        // Craft's `ipHeaders` so getUserIP() returns the forwarded client IP.
         $visitorId = ABTestCraft::getInstance()->assignment->getOrCreateVisitorId();
-
-        // Support Cloudflare's CF-Connecting-IP header. getUserIP() and the
-        // header can both be null, so fall back to a sentinel to keep the
-        // (string-typed) rate-limit key from throwing under strict_types.
-        $cfIp = $request->getHeaders()->get('CF-Connecting-IP');
-        $effectiveIp = $cfIp ?: ($ip ?: 'unknown');
+        $effectiveIp = $request->getUserIP() ?: 'unknown';
 
         // Check rate limit using database-based approach (multi-server compatible)
         if (!$this->checkRateLimit($effectiveIp, $visitorId, $testHandle)) {
