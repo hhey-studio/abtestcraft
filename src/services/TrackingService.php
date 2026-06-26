@@ -273,6 +273,31 @@ class TrackingService extends Component
     }
 
     /**
+     * Get the number of unique visitors who converted, per variant.
+     *
+     * Counts visitor rows (one per visitor/test), so a visitor is counted once
+     * regardless of how many sessions or goal types they converted on. This is
+     * the correct numerator for visitor-level conversion rate and significance.
+     */
+    public function getConvertedVisitors(Test $test): array
+    {
+        $stats = (new Query())
+            ->select(['variant', 'COUNT(*) as total'])
+            ->from('{{%abtestcraft_visitors}}')
+            ->where(['testId' => $test->id, 'converted' => true])
+            ->groupBy(['variant'])
+            ->all();
+
+        $result = ['control' => 0, 'variant' => 0];
+
+        foreach ($stats as $stat) {
+            $result[$stat['variant']] = (int) $stat['total'];
+        }
+
+        return $result;
+    }
+
+    /**
      * Check if test has reached statistical significance and notify if enabled
      * Delegates to NotificationService for actual notification handling
      */

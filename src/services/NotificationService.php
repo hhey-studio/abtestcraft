@@ -110,9 +110,9 @@ class NotificationService extends Component
 
         $body .= "CONVERSION RATES\n";
         $body .= "Control: {$stats['conversionRates']['control']}% ";
-        $body .= "({$stats['conversions']['control']}/{$stats['impressions']['control']})\n";
+        $body .= "({$stats['convertedVisitors']['control']}/{$stats['visitors']['control']} visitors)\n";
         $body .= "Variant: {$stats['conversionRates']['variant']}% ";
-        $body .= "({$stats['conversions']['variant']}/{$stats['impressions']['variant']})\n\n";
+        $body .= "({$stats['convertedVisitors']['variant']}/{$stats['visitors']['variant']} visitors)\n\n";
 
         $body .= "View full results: {$resultsUrl}";
 

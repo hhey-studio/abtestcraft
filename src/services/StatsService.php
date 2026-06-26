@@ -137,17 +137,23 @@ class StatsService extends Component
         $impressions = ABTestCraft::getInstance()->tracking->getTotalImpressions($test);
         $conversions = ABTestCraft::getInstance()->tracking->getTotalConversions($test);
         $visitors = ABTestCraft::getInstance()->tracking->getUniqueVisitors($test);
+        $convertedVisitors = ABTestCraft::getInstance()->tracking->getConvertedVisitors($test);
 
+        // Conversion rate and significance are computed per UNIQUE VISITOR, not
+        // per session/impression. Using sessions would violate the chi-squared
+        // independence assumption (a visitor with N sessions counted N times),
+        // overstating confidence and risking premature winners. impressions and
+        // conversions (events) are retained below as engagement metrics only.
         $conversionRates = [
-            'control' => $this->calculateConversionRate($impressions['control'], $conversions['control']),
-            'variant' => $this->calculateConversionRate($impressions['variant'], $conversions['variant']),
+            'control' => $this->calculateConversionRate($visitors['control'], $convertedVisitors['control']),
+            'variant' => $this->calculateConversionRate($visitors['variant'], $convertedVisitors['variant']),
         ];
 
         $significance = $this->calculateSignificance(
-            $impressions['control'],
-            $conversions['control'],
-            $impressions['variant'],
-            $conversions['variant']
+            $visitors['control'],
+            $convertedVisitors['control'],
+            $visitors['variant'],
+            $convertedVisitors['variant']
         );
 
         $settings = ABTestCraft::getInstance()->getSettings();
@@ -188,6 +194,7 @@ class StatsService extends Component
             'impressions' => $impressions,
             'conversions' => $conversions,
             'visitors' => $visitors,
+            'convertedVisitors' => $convertedVisitors,
             'conversionRates' => $conversionRates,
             'confidence' => $significance['confidence'],
             'chiSquared' => $significance['chiSquared'],
