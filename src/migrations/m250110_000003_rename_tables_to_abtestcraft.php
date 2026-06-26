@@ -16,19 +16,21 @@ class m250110_000003_rename_tables_to_abtestcraft extends Migration
     {
         // Rename all tables from splittest_* to abtestcraft_*
         $tables = [
-            'abtestcraft_tests' => 'abtestcraft_tests',
-            'abtestcraft_goals' => 'abtestcraft_goals',
-            'abtestcraft_visitors' => 'abtestcraft_visitors',
-            'abtestcraft_daily_stats' => 'abtestcraft_daily_stats',
-            'abtestcraft_rate_limits' => 'abtestcraft_rate_limits',
-            'abtestcraft_test_descendants' => 'abtestcraft_test_descendants',
+            'splittest_tests' => 'abtestcraft_tests',
+            'splittest_goals' => 'abtestcraft_goals',
+            'splittest_visitors' => 'abtestcraft_visitors',
+            'splittest_daily_stats' => 'abtestcraft_daily_stats',
+            'splittest_rate_limits' => 'abtestcraft_rate_limits',
+            'splittest_test_descendants' => 'abtestcraft_test_descendants',
         ];
 
         foreach ($tables as $oldName => $newName) {
             $oldTable = '{{%' . $oldName . '}}';
             $newTable = '{{%' . $newName . '}}';
 
-            if ($this->db->tableExists($oldTable)) {
+            // Only rename when the source exists and the target doesn't, so this
+            // is a safe no-op on fresh installs (which already have the new names).
+            if ($this->db->tableExists($oldTable) && !$this->db->tableExists($newTable)) {
                 $this->renameTable($oldTable, $newTable);
             }
         }
@@ -40,19 +42,19 @@ class m250110_000003_rename_tables_to_abtestcraft extends Migration
     {
         // Rename tables back to original names
         $tables = [
-            'abtestcraft_tests' => 'abtestcraft_tests',
-            'abtestcraft_goals' => 'abtestcraft_goals',
-            'abtestcraft_visitors' => 'abtestcraft_visitors',
-            'abtestcraft_daily_stats' => 'abtestcraft_daily_stats',
-            'abtestcraft_rate_limits' => 'abtestcraft_rate_limits',
-            'abtestcraft_test_descendants' => 'abtestcraft_test_descendants',
+            'abtestcraft_tests' => 'splittest_tests',
+            'abtestcraft_goals' => 'splittest_goals',
+            'abtestcraft_visitors' => 'splittest_visitors',
+            'abtestcraft_daily_stats' => 'splittest_daily_stats',
+            'abtestcraft_rate_limits' => 'splittest_rate_limits',
+            'abtestcraft_test_descendants' => 'splittest_test_descendants',
         ];
 
         foreach ($tables as $oldName => $newName) {
             $oldTable = '{{%' . $oldName . '}}';
             $newTable = '{{%' . $newName . '}}';
 
-            if ($this->db->tableExists($oldTable)) {
+            if ($this->db->tableExists($oldTable) && !$this->db->tableExists($newTable)) {
                 $this->renameTable($oldTable, $newTable);
             }
         }

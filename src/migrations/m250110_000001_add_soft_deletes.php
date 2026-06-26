@@ -34,8 +34,9 @@ class m250110_000001_add_soft_deletes extends Migration
     {
         $table = '{{%abtestcraft_tests}}';
 
-        // Remove index first
-        $this->dropIndexIfExists('idx_abtestcraft_tests_dateDeleted', $table);
+        // Remove index first. Craft 5 signature: dropIndexIfExists(table, columns)
+        // — it locates the index by table + columns, not by name.
+        $this->dropIndexIfExists($table, ['dateDeleted']);
 
         // Remove column
         if ($this->db->columnExists($table, 'dateDeleted')) {
