@@ -13,7 +13,7 @@ class m250110_000001_add_soft_deletes extends Migration
 {
     public function safeUp(): bool
     {
-        $table = '{{%abtestcraft_tests}}';
+        $table = $this->tableName('tests');
 
         // Add dateDeleted column for soft deletes
         if (!$this->db->columnExists($table, 'dateDeleted')) {
@@ -32,7 +32,7 @@ class m250110_000001_add_soft_deletes extends Migration
 
     public function safeDown(): bool
     {
-        $table = '{{%abtestcraft_tests}}';
+        $table = $this->tableName('tests');
 
         // Remove index first. Craft 5 signature: dropIndexIfExists(table, columns)
         // — it locates the index by table + columns, not by name.
@@ -44,5 +44,13 @@ class m250110_000001_add_soft_deletes extends Migration
         }
 
         return true;
+    }
+
+    private function tableName(string $name): string
+    {
+        $oldTable = '{{%splittest_' . $name . '}}';
+        return $this->db->tableExists($oldTable) && !$this->db->tableExists('{{%abtestcraft_' . $name . '}}')
+            ? $oldTable
+            : '{{%abtestcraft_' . $name . '}}';
     }
 }

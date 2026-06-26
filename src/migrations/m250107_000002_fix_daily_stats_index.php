@@ -14,7 +14,7 @@ class m250107_000002_fix_daily_stats_index extends Migration
 {
     public function safeUp(): bool
     {
-        $table = '{{%abtestcraft_daily_stats}}';
+        $table = $this->tableName('daily_stats');
 
         // Get all indexes on the table
         $indexes = $this->db->getSchema()->getTableIndexes($table, true);
@@ -47,7 +47,7 @@ class m250107_000002_fix_daily_stats_index extends Migration
 
     public function safeDown(): bool
     {
-        $table = '{{%abtestcraft_daily_stats}}';
+        $table = $this->tableName('daily_stats');
 
         // Drop the new index
         $this->dropIndex('abtestcraft_daily_stats_unique', $table);
@@ -61,5 +61,13 @@ class m250107_000002_fix_daily_stats_index extends Migration
         );
 
         return true;
+    }
+
+    private function tableName(string $name): string
+    {
+        $oldTable = '{{%splittest_' . $name . '}}';
+        return $this->db->tableExists($oldTable) && !$this->db->tableExists('{{%abtestcraft_' . $name . '}}')
+            ? $oldTable
+            : '{{%abtestcraft_' . $name . '}}';
     }
 }

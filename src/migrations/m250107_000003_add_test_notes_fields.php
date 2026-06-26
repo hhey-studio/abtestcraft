@@ -13,7 +13,7 @@ class m250107_000003_add_test_notes_fields extends Migration
 {
     public function safeUp(): bool
     {
-        $table = '{{%abtestcraft_tests}}';
+        $table = $this->tableName('tests');
 
         // Add hypothesis field
         if (!$this->db->columnExists($table, 'hypothesis')) {
@@ -35,7 +35,7 @@ class m250107_000003_add_test_notes_fields extends Migration
 
     public function safeDown(): bool
     {
-        $table = '{{%abtestcraft_tests}}';
+        $table = $this->tableName('tests');
 
         if ($this->db->columnExists($table, 'hypothesis')) {
             $this->dropColumn($table, 'hypothesis');
@@ -48,5 +48,13 @@ class m250107_000003_add_test_notes_fields extends Migration
         }
 
         return true;
+    }
+
+    private function tableName(string $name): string
+    {
+        $oldTable = '{{%splittest_' . $name . '}}';
+        return $this->db->tableExists($oldTable) && !$this->db->tableExists('{{%abtestcraft_' . $name . '}}')
+            ? $oldTable
+            : '{{%abtestcraft_' . $name . '}}';
     }
 }

@@ -17,9 +17,13 @@ class m250110_000002_add_rate_limits_and_notifications extends Migration
 {
     public function safeUp(): bool
     {
+        $prefix = $this->tablePrefix();
+        $testsTable = '{{%' . $prefix . '_tests}}';
+        $rateLimitsTable = '{{%' . $prefix . '_rate_limits}}';
+
         // Create rate limits table for database-based rate limiting
-        if (!$this->db->tableExists('{{%abtestcraft_rate_limits}}')) {
-            $this->createTable('{{%abtestcraft_rate_limits}}', [
+        if (!$this->db->tableExists($rateLimitsTable)) {
+            $this->createTable($rateLimitsTable, [
                 'id' => $this->primaryKey(),
                 'cacheKey' => $this->string(255)->notNull(),
                 'requestCount' => $this->integer()->notNull()->defaultValue(1),
@@ -32,7 +36,7 @@ class m250110_000002_add_rate_limits_and_notifications extends Migration
             // Unique index on cache key for upsert operations
             $this->createIndex(
                 'idx_abtestcraft_rate_limits_cache_key',
-                '{{%abtestcraft_rate_limits}}',
+                $rateLimitsTable,
                 ['cacheKey'],
                 true
             );
@@ -40,15 +44,15 @@ class m250110_000002_add_rate_limits_and_notifications extends Migration
             // Index on window start for cleanup queries
             $this->createIndex(
                 'idx_abtestcraft_rate_limits_window',
-                '{{%abtestcraft_rate_limits}}',
+                $rateLimitsTable,
                 ['windowStart']
             );
         }
 
         // Add significance notification timestamp to tests table
-        if (!$this->db->columnExists('{{%abtestcraft_tests}}', 'significanceNotifiedAt')) {
+        if ($this->db->tableExists($testsTable) && !$this->db->columnExists($testsTable, 'significanceNotifiedAt')) {
             $this->addColumn(
-                '{{%abtestcraft_tests}}',
+                $testsTable,
                 'significanceNotifiedAt',
                 $this->dateTime()->null()->after('winnerVariant')
             );
@@ -59,14 +63,32 @@ class m250110_000002_add_rate_limits_and_notifications extends Migration
 
     public function safeDown(): bool
     {
+        $rateLimitsTable = $this->tableName('rate_limits');
+        $testsTable = $this->tableName('tests');
+
         // Drop rate limits table
-        $this->dropTableIfExists('{{%abtestcraft_rate_limits}}');
+        $this->dropTableIfExists($rateLimitsTable);
 
         // Remove significance notification column
-        if ($this->db->columnExists('{{%abtestcraft_tests}}', 'significanceNotifiedAt')) {
-            $this->dropColumn('{{%abtestcraft_tests}}', 'significanceNotifiedAt');
+        if ($this->db->tableExists($testsTable) && $this->db->columnExists($testsTable, 'significanceNotifiedAt')) {
+            $this->dropColumn($testsTable, 'significanceNotifiedAt');
         }
 
         return true;
+    }
+
+    private function tablePrefix(): string
+    {
+        return $this->db->tableExists('{{%splittest_tests}}') && !$this->db->tableExists('{{%abtestcraft_tests}}')
+            ? 'splittest'
+            : 'abtestcraft';
+    }
+
+    private function tableName(string $name): string
+    {
+        $oldTable = '{{%splittest_' . $name . '}}';
+        return $this->db->tableExists($oldTable) && !$this->db->tableExists('{{%abtestcraft_' . $name . '}}')
+            ? $oldTable
+            : '{{%abtestcraft_' . $name . '}}';
     }
 }
