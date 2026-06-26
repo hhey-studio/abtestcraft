@@ -26,11 +26,14 @@ class TrackingService extends Component
     {
         $today = (new DateTime())->format('Y-m-d');
 
-        // Find or create daily stats record
+        // Find or create the aggregate daily stats row. Must scope to
+        // goalType = null, otherwise findOne() can match a goal-specific row and
+        // increment its impressions (the unique index is testId+date+variant+goalType).
         $record = DailyStatsRecord::findOne([
             'testId' => $test->id,
             'date' => $today,
             'variant' => $variant,
+            'goalType' => null,
         ]);
 
         if (!$record) {
@@ -38,6 +41,7 @@ class TrackingService extends Component
             $record->testId = $test->id;
             $record->date = $today;
             $record->variant = $variant;
+            $record->goalType = null;
             $record->impressions = 0;
             $record->conversions = 0;
         }
