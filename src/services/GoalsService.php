@@ -10,6 +10,7 @@ use craft\helpers\Json;
 use livehand\abtestcraft\models\Goal;
 use livehand\abtestcraft\models\Test;
 use livehand\abtestcraft\records\GoalRecord;
+use livehand\abtestcraft\ABTestCraft;
 use DateTime;
 
 /**
