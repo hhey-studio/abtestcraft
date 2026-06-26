@@ -6,6 +6,7 @@ namespace livehand\abtestcraft\services;
 
 use Craft;
 use craft\base\Component;
+use craft\elements\db\EagerLoadPlan;
 use craft\elements\Entry;
 use craft\events\TemplateEvent;
 use livehand\abtestcraft\models\Test;
@@ -142,8 +143,14 @@ class RoutingService extends Component
             }
 
             // Use setEagerLoadedElements to override what getChildren() returns
-            // This is the cleanest way as Craft checks eager-loaded elements first
-            $variantEntry->setEagerLoadedElements('children', $controlChildren);
+            // This is the cleanest way as Craft checks eager-loaded elements first.
+            // Craft 5 requires an EagerLoadPlan as the third argument.
+            $plan = new EagerLoadPlan([
+                'handle' => 'children',
+                'alias' => 'children',
+                'all' => true,
+            ]);
+            $variantEntry->setEagerLoadedElements('children', $controlChildren, $plan);
         } catch (\Exception $e) {
             Craft::warning(
                 "Split Test: Could not override entry children: " . $e->getMessage(),
