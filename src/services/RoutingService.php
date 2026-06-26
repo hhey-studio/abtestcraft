@@ -172,8 +172,13 @@ class RoutingService extends Component
             return;
         }
 
-        // Get the variant's section template settings
+        // Get the variant's section template settings. Nested entries (Matrix/
+        // CKEditor) have no section, so getSection() can return null.
         $section = $variantEntry->getSection();
+        if (!$section) {
+            Craft::warning("Split Test: Variant entry has no section for test '{$test->handle}'", __METHOD__);
+            return;
+        }
         $siteSettings = $section->getSiteSettings();
         $siteId = $variantEntry->siteId;
 

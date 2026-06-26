@@ -59,9 +59,11 @@ class TrackController extends Controller
         $ip = $request->getUserIP();
         $visitorId = ABTestCraft::getInstance()->assignment->getOrCreateVisitorId();
 
-        // Support Cloudflare's CF-Connecting-IP header
+        // Support Cloudflare's CF-Connecting-IP header. getUserIP() and the
+        // header can both be null, so fall back to a sentinel to keep the
+        // (string-typed) rate-limit key from throwing under strict_types.
         $cfIp = $request->getHeaders()->get('CF-Connecting-IP');
-        $effectiveIp = $cfIp ?: $ip;
+        $effectiveIp = $cfIp ?: ($ip ?: 'unknown');
 
         // Check rate limit using database-based approach (multi-server compatible)
         if (!$this->checkRateLimit($effectiveIp, $visitorId, $testHandle)) {

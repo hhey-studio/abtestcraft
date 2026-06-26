@@ -166,8 +166,11 @@ class TestsController extends Controller
         }
 
         $test->siteId = Craft::$app->getSites()->getCurrentSite()->id;
-        $test->name = $request->getBodyParam('name');
-        $test->handle = $request->getBodyParam('handle');
+        // Cast to string: getBodyParam() returns null for missing params, which
+        // would throw a TypeError on these non-nullable properties (strict_types).
+        // An empty value then surfaces as a friendly "required" validation error.
+        $test->name = (string) $request->getBodyParam('name', '');
+        $test->handle = (string) $request->getBodyParam('handle', '');
 
         // Auto-generate handle from name if empty or still matches a previous auto-generation
         $test->generateHandle();
@@ -186,7 +189,7 @@ class TestsController extends Controller
         $test->trafficSplit = (int) $request->getBodyParam('trafficSplit', 50);
 
         // Keep legacy fields for backward compatibility
-        $test->goalType = $request->getBodyParam('goalType');
+        $test->goalType = (string) $request->getBodyParam('goalType', '');
         $test->goalValue = $request->getBodyParam('goalValue');
 
         if (!ABTestCraft::getInstance()->tests->saveTest($test)) {

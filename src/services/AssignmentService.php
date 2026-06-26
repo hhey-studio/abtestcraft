@@ -85,13 +85,26 @@ class AssignmentService extends Component
         $record->variant = $visitor->variant;
         $record->converted = false;
 
-        if (!$record->save()) {
-            $errorMsg = "Failed to save visitor assignment for test {$test->id}: " .
-                json_encode($record->getErrors());
-            Craft::error($errorMsg, __METHOD__);
-            // Still set cookie and return variant - the user should see the test
-            // even if we couldn't persist their assignment (they'll get re-assigned next visit)
-            Craft::warning("Visitor assignment not persisted - will be reassigned on next visit", __METHOD__);
+        try {
+            if (!$record->save()) {
+                $errorMsg = "Failed to save visitor assignment for test {$test->id}: " .
+                    json_encode($record->getErrors());
+                Craft::error($errorMsg, __METHOD__);
+                // Still set cookie and return variant - the user should see the test
+                // even if we couldn't persist their assignment (they'll get re-assigned next visit)
+                Craft::warning("Visitor assignment not persisted - will be reassigned on next visit", __METHOD__);
+            }
+        } catch (\yii\db\IntegrityException $e) {
+            // A concurrent first request already inserted the assignment for this
+            // visitor (the (testId, visitorId) unique index fired). Re-read it and
+            // honor the variant that won the race instead of 500ing the page.
+            $existingRecord = VisitorRecord::findOne([
+                'testId' => $test->id,
+                'visitorId' => $visitorId,
+            ]);
+            if ($existingRecord) {
+                $variant = $existingRecord->variant;
+            }
         }
 
         // Set cookie

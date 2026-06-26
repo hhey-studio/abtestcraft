@@ -184,12 +184,18 @@ class ABTestCraft extends BasePlugin
                 View::class,
                 View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
                 function (TemplateEvent $event) {
-                    $this->routing->handleBeforeRender($event);
+                    // Never let A/B-test logic take down an unrelated front-end
+                    // page. Any failure here degrades to the control experience.
+                    try {
+                        $this->routing->handleBeforeRender($event);
 
-                    // Inject SEO protection for variant entries
-                    $element = Craft::$app->getUrlManager()->getMatchedElement();
-                    if ($element instanceof Entry) {
-                        $this->seo->injectSeoProtection($element);
+                        // Inject SEO protection for variant entries
+                        $element = Craft::$app->getUrlManager()->getMatchedElement();
+                        if ($element instanceof Entry) {
+                            $this->seo->injectSeoProtection($element);
+                        }
+                    } catch (\Throwable $e) {
+                        Craft::error('ABTestCraft beforeRender failed: ' . $e->getMessage(), __METHOD__);
                     }
                 }
             );
@@ -199,7 +205,11 @@ class ABTestCraft extends BasePlugin
                 View::class,
                 View::EVENT_AFTER_RENDER_PAGE_TEMPLATE,
                 function (TemplateEvent $event) {
-                    $this->injectTrackingScript($event);
+                    try {
+                        $this->injectTrackingScript($event);
+                    } catch (\Throwable $e) {
+                        Craft::error('ABTestCraft afterRender failed: ' . $e->getMessage(), __METHOD__);
+                    }
                 }
             );
         }
